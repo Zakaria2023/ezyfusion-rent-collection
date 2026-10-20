@@ -19,7 +19,12 @@ import type { Actor } from "../auth";
 import { pgErrorCode } from "../db-errors";
 import { badRequest, conflict, notFound, unprocessable } from "../http";
 import { prisma } from "../prisma";
-import { removeSlip, signedSlipUrl, uploadSlip } from "../slips";
+import {
+  removeSlip,
+  signedSlipUrl,
+  uploadSlip,
+  verifyStoredSlip,
+} from "../slips";
 
 // Manual payments (cash, bank transfer) and the manager decisions on them.
 //
@@ -130,6 +135,7 @@ export const recordPayment = async (
     if (!data.slipPath.startsWith(`${lease.org_id}/`)) {
       throw badRequest("slipPath: Slip must be in the organization's folder");
     }
+    await verifyStoredSlip(data.slipPath);
   } else if (data.slipPath !== undefined) {
     throw badRequest("slipPath: Only a bank transfer has a slip");
   }

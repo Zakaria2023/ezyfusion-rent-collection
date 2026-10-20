@@ -66,6 +66,27 @@ export const uploadSlip = async (
   return path;
 };
 
+/**
+ * Checks a slip that was uploaded straight to Storage (the HTTP API takes a
+ * slipPath, not the file). Storage's allowed_mime_types trusts the declared
+ * Content-Type, so the bytes are checked here exactly as uploadSlip does.
+ */
+export const verifyStoredSlip = async (path: string): Promise<void> => {
+  const { data, error } = await supabaseAdmin()
+    .storage.from(SLIP_BUCKET)
+    .download(path);
+  if (error) {
+    throw badRequest("slipPath: Slip file not found");
+  }
+  if (data.size === 0 || data.size > MAX_SLIP_BYTES) {
+    throw badRequest("slipPath: Slip must be between 1 byte and 5 MB");
+  }
+  const head = new Uint8Array(await data.slice(0, 16).arrayBuffer());
+  if (!detectSlipType(head)) {
+    throw badRequest("slipPath: Only JPEG, PNG or PDF files are accepted");
+  }
+};
+
 export const removeSlip = async (path: string): Promise<void> => {
   const { error } = await supabaseAdmin()
     .storage.from(SLIP_BUCKET)
