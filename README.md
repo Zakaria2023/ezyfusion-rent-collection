@@ -116,3 +116,73 @@ docs/
 ## Design decisions
 
 See [DECISIONS.md](DECISIONS.md).
+
+## Testing
+
+```bash
+pnpm test          # unit + integration (needs the local Supabase stack running)
+```
+
+- `src/lib/*.test.ts` — billing (worked example, leap years, month-end
+  anchors, proration rounding, `invoiceStatus` at 15:59:59.999Z vs 16:00Z,
+  every `parseRinggitToSen` case), Malaysia-time helpers, money formatting,
+  webhook signature (the brief's test vector). Run under three timezones:
+  `$env:TZ='America/New_York'; pnpm test` (PowerShell — on Windows `TZ=` in Git
+  Bash does not reach Node).
+- `tests/payments.test.ts` — cap, two concurrent staff payments, concurrent
+  double approve, approve re-check, void, allocation order, overlap 409
+  (including concurrent creates), collections across the MYT month boundary.
+- `tests/webhook.test.ts` — valid / repeated / 5 concurrent identical / forged
+  / unknown / wrong-amount / out-of-order callbacks.
+- `tests/access.test.ts` — the 401/403/404 matrix for every endpoint with real
+  Bearer tokens, asserting nothing changed on every refusal.
+- `tests/data-api.test.ts` — PostgREST and Storage with the publishable key as
+  anon and as each role: exact visible rows, phone-only update, no writes, no
+  RPC, catalog checks (RLS on, no anon grants).
+
+The app was also checked end to end against a production build (`npm run
+build && npm start`) from a fresh clone, with the brief's simulator
+(`scripts/gateway-sim.mjs`).
+
+## What works
+
+Everything in sections 2–9 of the brief: billing functions, the full HTTP API
+with 401/403/404 semantics and Bearer or cookie auth, Data API and Storage
+access control, payments (cap, approve / reject / void, allocation, audit log)
+safe under concurrency, the idempotent webhook, the collections report in
+Malaysia months, the staff/manager UI and the tenant portal. Bonus: the
+create-lease form previews the schedule live; the leases list has server-side
+search and pagination in the URL; unit tests for billing and allocation; the
+return page polls the bill status while it is pending.
+
+## Skipped / known issues
+
+- **Realtime** updates on the tenant portal are not implemented (the return
+  page polls every 3 s instead).
+- **Unapplied credit is not re-applied automatically.** After a void, an online
+  payment's `unapplied_sen` stays on that payment (see DECISIONS.md, Part C
+  question 5) and is not counted in the recording cap.
+- **Deleting an auth user does not cascade** to `memberships`/`tenants`
+  (Prisma cannot introspect cross-schema FKs; a trigger checks the user exists
+  on insert instead).
+- **Local stack caveat:** a default local Supabase accepts HS256 tokens signed
+  with the CLI's well-known JWT secret; that is the local stack's
+  configuration, not something the app can change. Production keys are
+  different.
+- The UI has no dark-mode toggle (it follows the system setting).
+
+## What I would do next
+
+- An audited "apply credit" action for `unapplied_sen`, and refunds as new
+  negative-allocation rows.
+- Pending-bill reuse for "Pay now" (today each click creates a new bill;
+  paying two bills leaves the extra as unapplied credit).
+- Late fees and reminders, done as idempotent jobs keyed by invoice and period.
+- Playwright tests for the UI flows and a browser-timezone check in CI.
+- Run Prisma queries inside `set local role authenticated` transactions so
+  RLS also applies to server reads (defence in depth).
+
+## AI logs
+
+The transcripts of every AI session used for this work are in `ai-logs/`
+(exported with `/export` in Claude Code).
