@@ -232,7 +232,7 @@ departures from the pre-test working agreement.
   stub. Rejected: `--conditions=react-server`, which also swaps React for its
   server build and crashes on `next/navigation`.
 
-## Input validation details (from the self-audit)
+## Fixes from the self-audit (independent reviewer agents)
 
 - **`receivedAt` must carry an offset** (`Z`, `+08:00` or `+0800`); a bare
   local time is ambiguous on a UTC server and is refused (400). Any instant is
