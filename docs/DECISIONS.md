@@ -138,3 +138,83 @@ departures from the pre-test working agreement.
 - **Verified with real tokens** against PostgREST and Storage (tenant
   isolation, staff vs other org, phone-only update, rpc 404, anon denied,
   uploads to another org's folder refused).
+
+## Server-side authorization (layer 1 of access control)
+
+- **Role and organization come only from `memberships` / `tenants.user_id`**,
+  after `supabase.auth.getUser()` (cookie) or `getUser(token)` (Bearer).
+  Never `getSession()` (unverified) or `user_metadata` (user-editable). Tested:
+  a user whose `user_metadata` says `manager` but has no membership gets 401.
+- **One check order in every endpoint: 401 → 404 → 403 → 400 → 409/422.**
+  Visibility is decided before the role, so a record in another organization
+  (or another tenant's lease) is 404 and its existence is never revealed. A
+  tenant who can see their lease but tries to record a payment gets 403.
+  Services therefore take `input: unknown` and validate it with zod *after*
+  the visibility and role checks; validating in the route would answer 400
+  before 404.
+- **IDs in bodies are untrusted.** `createLease` loads the unit and tenant
+  filtered by the caller's `org_id` (404 otherwise), and the composite FKs
+  make a cross-org lease impossible even if that check had a bug.
+- **Services take an `Actor` and never import `next/headers`**, so route
+  handlers, Server Actions, the seed and the tests all go through the same
+  rules. Rejected: duplicating checks per entry point.
+- **Prisma bypasses RLS**, so every Prisma query is either scoped by the
+  actor's `org_id` / lease visibility (`src/lib/server/access.ts`) or runs
+  after that check. RLS is the second wall for the Data API.
+
+## Payments and concurrency
+
+- **One lock order: the lease row first (`SELECT … FOR UPDATE`), then the
+  payment or bill row.** Every money-moving transaction (record, approve,
+  reject, void, webhook settlement, bill creation) takes `lockLease` first, so
+  operations on one lease run one at a time and never deadlock. Rejected:
+  SERIALIZABLE plus a retry loop, which is harder to reason about and explain.
+- **Cap = invoiced − allocated − pending, computed under that lock.** Two
+  staff record RM 800 and RM 700 at once on RM 1,000 remaining: the second
+  waits for the lock, re-reads the totals with the first one's RM 800 now
+  pending, and gets 422. A test proves the lock matters: with it removed,
+  both are accepted.
+- **Approval re-checks against invoiced − allocated** (the remaining
+  balance), not the recording cap: the payment being approved is itself one of
+  the pending ones. Over the balance → 422, and it stays pending.
+- **Approving twice at once allocates once**: the second request waits on the
+  lock, re-reads the payment `FOR UPDATE`, sees `approved` and gets 409. The
+  allocation trigger also refuses rows for a payment that is not approved.
+- **Allocation order: due date, deposit before rent, period index**, filling
+  each invoice before the next, including invoices not yet due. The remainder
+  goes to `unapplied_sen`, which a CHECK allows only for online payments.
+- **Void deletes only that payment's allocations and never re-allocates.**
+  Other payments, including another payment's `unapplied_sen`, are untouched,
+  as the brief says ("Other payments' allocations do not change"). Reopened
+  invoices show as unpaid/overdue and a manager decides. Rejected: automatically
+  moving unapplied credit onto reopened invoices, which would silently change
+  an already-settled payment's allocations.
+- **Payments are append-only**: reject/void are status changes with a
+  mandatory reason (≥ 5 chars, also a CHECK), never deletes. Void overwrites
+  `decided_by/at`; the full history is in `audit_log`.
+- **Slips**: the type is checked by magic bytes and the size server-side. The
+  file goes to `<org>/<lease>/<uuid>.<ext>` after authorization, and
+  `recordPaymentWithSlip` removes it if recording fails, so no orphan is left.
+
+## Online payments and the webhook
+
+- **Signature first.** Nothing is parsed or looked up before the HMAC
+  verifies, so an unsigned caller cannot probe which bill ids exist.
+- **Single payment per bill, three layers:** (1) the transaction locks the
+  lease then the bill `FOR UPDATE` and re-reads its status, so a concurrent
+  duplicate waits and then sees `paid` → 200 no-op; (2)
+  `payments.gateway_bill_id UNIQUE`; (3) a 23505 on that one constraint is
+  answered 200 ("another delivery won"), not 500. Rejected: a separate
+  `webhook_events` table; the bill's own status plus the UNIQUE already make
+  the effect idempotent.
+- **Forward-only bill states** (trigger): `pending → paid|failed`,
+  `failed → paid`. A late `paid=false` after `paid` is a 200 no-op.
+- **`received_at = paid_at`** from the callback (parsed with its offset), not
+  the delivery time, so a retry delivered after midnight still counts in the
+  right month.
+- **Amount due now** = unpaid amounts of invoices due on or before
+  `todayInMalaysia(now)`, computed under the lease lock. If a tenant pays two
+  bills, the extra becomes `unapplied_sen` on the second online payment, which
+  the brief allows only for online payments.
+- **The return page only reads the bill's status** and ignores its `paid`
+  query parameter. Only the signed webhook settles a bill.
