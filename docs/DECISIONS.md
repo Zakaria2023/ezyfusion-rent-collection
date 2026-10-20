@@ -56,3 +56,30 @@ departures from the pre-test working agreement.
   (`src/lib/server/http.ts`). Routes read as a straight line of guards
   (`throw notFound()`), and a 500 logs only `error.message`, never bodies,
   tokens or the gateway key.
+
+## Money and dates (`src/lib/billing.ts`, `dates.ts`, `money.ts`)
+
+- **Proration is exact round-half-up in integers:**
+  `floor((2·rent·used + full) / (2·full))` in BigInt. It is the only place a
+  fraction of a sen is created. Rejected: `Math.round(rent * used / full)` in
+  floats, which can misround near .5 and loses precision for big values.
+- **Calendar dates are `(y, m, d)` integers / day serial numbers, never a
+  `Date` read with local getters.** The hidden tests run under three TZs;
+  `new Date('2026-03-01').getDate()` is the 28th in New York. Rejected:
+  date-fns on local `Date`s.
+- **"Today in Malaysia" = `floor((epochMs + 8h) / 1 day)`.** Malaysia is a
+  fixed UTC+8 with no DST, so this is exact and needs no tz database. One
+  function (`malaysiaDateOf`) is shared by `invoiceStatus` and the app.
+- **Anchors are start + k months, clamped to the month end**, always from the
+  start date. Rejected: adding a month to the previous anchor, which drifts
+  (Jan 31 → Feb 28 → Mar 28).
+- **`parseRinggitToSen` builds sen from the digit strings** (ringgit·100 +
+  fraction padded to 2). Rejected: `parseFloat("1.15") * 100` = 114.999….
+- **Display strings are built by hand, not `toLocaleString`**, so server and
+  browser render byte-identical text (no ICU/NBSP differences → no hydration
+  mismatch) and always in Malaysia time regardless of the viewer's zone.
+- **End dates are inclusive** everywhere (lease `end_date`, `period_end`), as
+  the brief defines them; the overlap constraint uses `daterange(…, '[]')`.
+- **Testing TZ on Windows:** `TZ=…` set in Git Bash does not reach Node;
+  set it in PowerShell (`$env:TZ='America/New_York'`). A test asserts the
+  zone actually took effect.
