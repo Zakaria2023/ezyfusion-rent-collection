@@ -1,0 +1,13 @@
+{
+  // Used only by `npm run seed` (tsx --tsconfig scripts/tsconfig.json).
+  // `server-only` throws when imported outside a React Server Components
+  // bundle; the seed is a trusted server-side script, so it maps the marker to
+  // an empty module. Everything else resolves exactly as in the app.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["../src/*"],
+      "server-only": ["./server-only-stub.ts"]
+    }
+  }
+}
