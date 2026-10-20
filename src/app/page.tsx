@@ -1,10 +1,16 @@
-const HomePage = () => (
-  <main className="flex flex-1 flex-col items-center justify-center gap-2 p-8">
-    <h1 className="text-2xl font-semibold tracking-tight">Rent Collection</h1>
-    <p className="text-muted-foreground">
-      Leases, invoices and payments for property managers.
-    </p>
-  </main>
-);
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+// Entry point: send signed-out visitors to /login, everyone else to the app.
+const HomePage = async () => {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  redirect("/dashboard");
+};
 
 export default HomePage;
