@@ -134,6 +134,7 @@ export const useLeaseForm = () => {
 
   return {
     register: form.register,
+    control: form.control,
     errors: form.formState.errors,
     unitId,
     tenantId,

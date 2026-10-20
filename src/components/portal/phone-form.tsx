@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,19 +22,32 @@ export const PhoneForm = ({ tenantId, phone, onSaved }: PhoneFormProps) => {
   return (
     <form className="flex flex-col gap-2" onSubmit={onSubmit} noValidate>
       <Label htmlFor="phone">Phone number</Label>
-      <div className="flex gap-2">
-        <Input
-          id="phone"
-          type="tel"
-          autoComplete="tel"
-          placeholder="+60 12-345 6789"
-          className="max-w-xs"
-          aria-invalid={errors.phone ? true : undefined}
-          aria-describedby="phone-help"
-          {...register("phone")}
-        />
-        <Button type="submit" disabled={isPending || !isDirty}>
-          {isPending ? "Saving…" : "Save"}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Phone
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            id="phone"
+            type="tel"
+            autoComplete="tel"
+            placeholder="+60 12-345 6789"
+            className="h-9 pl-9"
+            aria-invalid={errors.phone ? true : undefined}
+            aria-describedby="phone-help"
+            {...register("phone")}
+          />
+        </div>
+        <Button type="submit" size="lg" disabled={isPending || !isDirty}>
+          {isPending ? (
+            <>
+              <Loader2 className="animate-spin" data-icon="inline-start" />
+              Saving…
+            </>
+          ) : (
+            "Save"
+          )}
         </Button>
       </div>
       {errors.phone ? (

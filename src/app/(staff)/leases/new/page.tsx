@@ -1,4 +1,4 @@
-import { Building2 } from "lucide-react";
+import { Building2, FilePlus2 } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -25,6 +25,7 @@ const NewLeasePage = async () => {
   return (
     <>
       <PageHeader
+        icon={FilePlus2}
         title="New lease"
         description="The invoices are generated from these terms and stored with the lease, all or nothing."
       />

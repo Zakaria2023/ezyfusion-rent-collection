@@ -83,6 +83,7 @@ export const useRecordPaymentForm = ({
 
   return {
     register: form.register,
+    control: form.control,
     errors: form.formState.errors,
     method,
     setMethod,

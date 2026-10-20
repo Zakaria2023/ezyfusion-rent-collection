@@ -22,6 +22,8 @@ const pageHref = (page: number, q: string) => {
   return query ? `/leases?${query}` : "/leases";
 };
 
+const PAGE_BUTTON = buttonVariants({ variant: "outline", size: "sm" });
+
 export const LeasePagination = ({
   page,
   pageSize,
@@ -34,31 +36,42 @@ export const LeasePagination = ({
 
   return (
     <nav
-      className="flex items-center justify-between gap-4 text-sm text-muted-foreground"
+      className="flex flex-col gap-3 border-t bg-muted/30 px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"
       aria-label="Pagination"
     >
       <span>
-        {firstRow}–{lastRow} of {total} · page {page} of {pageCount}
+        Showing{" "}
+        <span className="font-medium text-foreground tabular-nums">
+          {firstRow}–{lastRow}
+        </span>{" "}
+        of <span className="font-medium text-foreground">{total}</span>
       </span>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         {page > 1 ? (
-          <Link
-            href={pageHref(page - 1, q)}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
+          <Link href={pageHref(page - 1, q)} className={PAGE_BUTTON}>
             <ChevronLeft data-icon="inline-start" />
             Previous
           </Link>
-        ) : null}
+        ) : (
+          <span className={cn(PAGE_BUTTON, "opacity-50")} aria-disabled>
+            <ChevronLeft data-icon="inline-start" />
+            Previous
+          </span>
+        )}
+        <span className="px-2 text-xs tabular-nums">
+          Page {page} of {pageCount}
+        </span>
         {page < pageCount ? (
-          <Link
-            href={pageHref(page + 1, q)}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
+          <Link href={pageHref(page + 1, q)} className={PAGE_BUTTON}>
             Next
             <ChevronRight data-icon="inline-end" />
           </Link>
-        ) : null}
+        ) : (
+          <span className={cn(PAGE_BUTTON, "opacity-50")} aria-disabled>
+            Next
+            <ChevronRight data-icon="inline-end" />
+          </span>
+        )}
       </div>
     </nav>
   );

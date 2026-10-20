@@ -1,5 +1,12 @@
-import { ExternalLink } from "lucide-react";
+import {
+  Banknote,
+  ExternalLink,
+  Globe,
+  Landmark,
+  type LucideIcon,
+} from "lucide-react";
 import { PaymentStatusBadge } from "@/components/layout/status-badge";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -31,10 +38,10 @@ type PaymentsTableProps = {
 
 type PaymentActionsProps = { payment: PaymentRow };
 
-const METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "Cash",
-  bank_transfer: "Bank transfer",
-  online: "Online",
+const METHODS: Record<PaymentMethod, { label: string; icon: LucideIcon }> = {
+  cash: { label: "Cash", icon: Banknote },
+  bank_transfer: { label: "Bank transfer", icon: Landmark },
+  online: { label: "Online", icon: Globe },
 };
 
 // Manager-only buttons. Hiding them is UX; the services refuse anyway.
@@ -59,30 +66,41 @@ const PaymentActions = ({ payment }: PaymentActionsProps) => {
 };
 
 export const PaymentsTable = ({ payments, canDecide }: PaymentsTableProps) => (
-  <div className="rounded-lg border">
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Received (Malaysia time)</TableHead>
-          <TableHead>Method</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-          <TableHead className="text-right">Unapplied</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Slip</TableHead>
-          {canDecide ? (
-            <TableHead className="text-right">Actions</TableHead>
-          ) : null}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {payments.map((payment) => (
+  <Table>
+    <TableHeader>
+      <TableRow>
+        <TableHead>Received (MYT)</TableHead>
+        <TableHead>Method</TableHead>
+        <TableHead className="text-right">Amount</TableHead>
+        <TableHead className="text-right">Unapplied</TableHead>
+        <TableHead>Status</TableHead>
+        <TableHead>Slip</TableHead>
+        {canDecide ? (
+          <TableHead className="text-right">Actions</TableHead>
+        ) : null}
+      </TableRow>
+    </TableHeader>
+    <TableBody>
+      {payments.map((payment) => {
+        const { label, icon: MethodIcon } = METHODS[payment.method];
+        return (
           <TableRow key={payment.id}>
-            <TableCell>{formatMalaysiaDateTime(payment.receivedAt)}</TableCell>
-            <TableCell>{METHOD_LABELS[payment.method]}</TableCell>
-            <TableCell className="text-right tabular-nums">
+            <TableCell className="tabular-nums">
+              {formatMalaysiaDateTime(payment.receivedAt)}
+            </TableCell>
+            <TableCell>
+              <span className="inline-flex items-center gap-2">
+                <MethodIcon
+                  className="size-4 text-muted-foreground"
+                  aria-hidden
+                />
+                {label}
+              </span>
+            </TableCell>
+            <TableCell className="text-right font-medium tabular-nums">
               {formatSen(payment.amountSen)}
             </TableCell>
-            <TableCell className="text-right tabular-nums">
+            <TableCell className="text-right text-muted-foreground tabular-nums">
               {payment.unappliedSen > 0 ? formatSen(payment.unappliedSen) : "—"}
             </TableCell>
             <TableCell>
@@ -94,10 +112,11 @@ export const PaymentsTable = ({ payments, canDecide }: PaymentsTableProps) => (
                   href={`/slips/${payment.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 underline-offset-4 hover:underline"
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
                 >
                   View slip
-                  <ExternalLink className="size-3.5" aria-hidden />
+                  <ExternalLink data-icon="inline-end" aria-hidden />
+                  <span className="sr-only">(opens in a new tab)</span>
                 </a>
               ) : (
                 <span className="text-muted-foreground">—</span>
@@ -109,8 +128,8 @@ export const PaymentsTable = ({ payments, canDecide }: PaymentsTableProps) => (
               </TableCell>
             ) : null}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  </div>
+        );
+      })}
+    </TableBody>
+  </Table>
 );

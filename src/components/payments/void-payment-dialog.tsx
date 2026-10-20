@@ -8,6 +8,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogMedia,
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
@@ -28,13 +29,18 @@ export const VoidPaymentDialog = ({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogTrigger render={<Button variant="destructive" size="sm" />}>
+      <AlertDialogTrigger
+        render={<Button variant="outline-destructive" size="sm" />}
+      >
         <Ban data-icon="inline-start" />
         Void
       </AlertDialogTrigger>
       <AlertDialogContent>
         <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
           <AlertDialogHeader>
+            <AlertDialogMedia className="bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">
+              <Ban />
+            </AlertDialogMedia>
             <AlertDialogTitle>Void payment of {amountLabel}?</AlertDialogTitle>
             <AlertDialogDescription>
               This cannot be undone. The payment&apos;s allocations are removed,

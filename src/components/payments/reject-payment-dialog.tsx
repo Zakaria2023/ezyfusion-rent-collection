@@ -1,6 +1,7 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X, XCircle } from "lucide-react";
+import { IconChip } from "@/components/layout/icon-chip";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,13 +26,16 @@ export const RejectPaymentDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+      <DialogTrigger
+        render={<Button variant="outline-destructive" size="sm" />}
+      >
         <X data-icon="inline-start" />
         Reject
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
           <DialogHeader>
+            <IconChip icon={XCircle} tone="rose" size="md" className="mb-2" />
             <DialogTitle>Reject payment of {amountLabel}?</DialogTitle>
             <DialogDescription>
               The payment stays on record as rejected and is never allocated.

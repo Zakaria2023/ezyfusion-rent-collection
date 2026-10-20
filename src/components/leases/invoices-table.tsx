@@ -35,7 +35,11 @@ const InvoicePeriod = ({ invoice }: InvoicePeriodProps) => {
     invoice.periodStart === null ||
     invoice.periodEnd === null
   ) {
-    return <span className="font-medium">Deposit</span>;
+    return (
+      <span className="inline-flex rounded-md bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700 dark:bg-teal-500/15 dark:text-teal-300">
+        Deposit
+      </span>
+    );
   }
   return (
     <div className="flex flex-col">
@@ -54,51 +58,53 @@ export const InvoicesTable = ({ invoices }: InvoicesTableProps) => {
   const paidSen = invoices.reduce((sum, i) => sum + i.paidSen, 0);
 
   return (
-    <div className="rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Period</TableHead>
-            <TableHead>Due date</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-            <TableHead className="text-right">Paid</TableHead>
-            <TableHead>Status</TableHead>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Period</TableHead>
+          <TableHead>Due date</TableHead>
+          <TableHead className="text-right">Amount</TableHead>
+          <TableHead className="text-right">Paid</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {invoices.map((invoice) => (
+          <TableRow key={invoice.id}>
+            <TableCell>
+              <InvoicePeriod invoice={invoice} />
+            </TableCell>
+            <TableCell>{formatCalendarDate(invoice.dueDate)}</TableCell>
+            <TableCell className="text-right font-medium tabular-nums">
+              {formatSen(invoice.amountSen)}
+            </TableCell>
+            <TableCell className="text-right text-muted-foreground tabular-nums">
+              {formatSen(invoice.paidSen)}
+            </TableCell>
+            <TableCell>
+              <InvoiceStatusBadge status={invoice.status} />
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {invoices.map((invoice) => (
-            <TableRow key={invoice.id}>
-              <TableCell>
-                <InvoicePeriod invoice={invoice} />
-              </TableCell>
-              <TableCell>{formatCalendarDate(invoice.dueDate)}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatSen(invoice.amountSen)}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatSen(invoice.paidSen)}
-              </TableCell>
-              <TableCell>
-                <InvoiceStatusBadge status={invoice.status} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-        <TableFooter>
-          <TableRow>
-            <TableCell colSpan={2}>
-              Total · balance {formatSen(totalSen - paidSen)}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatSen(totalSen)}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatSen(paidSen)}
-            </TableCell>
-            <TableCell />
-          </TableRow>
-        </TableFooter>
-      </Table>
-    </div>
+        ))}
+      </TableBody>
+      <TableFooter className="bg-primary/5">
+        <TableRow className="hover:bg-transparent">
+          <TableCell colSpan={2}>
+            <span className="font-semibold">Total</span>
+            <span className="text-muted-foreground">
+              {" "}
+              · balance {formatSen(totalSen - paidSen)}
+            </span>
+          </TableCell>
+          <TableCell className="text-right font-semibold tabular-nums">
+            {formatSen(totalSen)}
+          </TableCell>
+          <TableCell className="text-right font-semibold tabular-nums">
+            {formatSen(paidSen)}
+          </TableCell>
+          <TableCell />
+        </TableRow>
+      </TableFooter>
+    </Table>
   );
 };

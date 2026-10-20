@@ -1,7 +1,10 @@
 "use client";
 
+import { Info, Loader2 } from "lucide-react";
+import { Controller } from "react-hook-form";
 import { SLIP_ACCEPT } from "@/app/(staff)/leases/[leaseId]/validation";
 import { Button } from "@/components/ui/button";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -34,6 +37,7 @@ export const RecordPaymentForm = ({
 }: RecordPaymentFormProps) => {
   const {
     register,
+    control,
     errors,
     method,
     setMethod,
@@ -44,18 +48,27 @@ export const RecordPaymentForm = ({
   } = useRecordPaymentForm({ leaseId, defaultReceivedAt });
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
-      <div className="grid gap-4 sm:grid-cols-2">
+    <form className="flex flex-col gap-5" onSubmit={onSubmit} noValidate>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1">
         <div className="flex flex-col gap-2">
           <Label htmlFor="payment-amount">Amount (RM)</Label>
-          <Input
-            id="payment-amount"
-            inputMode="decimal"
-            autoComplete="off"
-            placeholder="1,500.00"
-            aria-invalid={errors.amount ? true : undefined}
-            {...register("amount")}
-          />
+          <div className="relative">
+            <span
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground"
+              aria-hidden
+            >
+              RM
+            </span>
+            <Input
+              id="payment-amount"
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="1,500.00"
+              className="pl-10 tabular-nums"
+              aria-invalid={errors.amount ? true : undefined}
+              {...register("amount")}
+            />
+          </div>
           {errors.amount ? (
             <p className="text-sm text-destructive">{errors.amount.message}</p>
           ) : (
@@ -90,11 +103,17 @@ export const RecordPaymentForm = ({
           <Label htmlFor="payment-received-at">
             Received at — Malaysia time (UTC+8)
           </Label>
-          <Input
-            id="payment-received-at"
-            type="datetime-local"
-            aria-invalid={errors.receivedAt ? true : undefined}
-            {...register("receivedAt")}
+          <Controller
+            control={control}
+            name="receivedAt"
+            render={({ field }) => (
+              <DateTimePicker
+                id="payment-received-at"
+                value={field.value}
+                onChange={field.onChange}
+                invalid={Boolean(errors.receivedAt)}
+              />
+            )}
           />
           {errors.receivedAt ? (
             <p className="text-sm text-destructive">
@@ -114,6 +133,7 @@ export const RecordPaymentForm = ({
               id="payment-slip"
               type="file"
               accept={SLIP_ACCEPT}
+              className="h-auto py-1.5 file:mr-3 file:rounded-md file:bg-secondary file:px-2 file:text-secondary-foreground"
               aria-invalid={errors.slip ? true : undefined}
               onChange={onSlipChange}
             />
@@ -127,14 +147,27 @@ export const RecordPaymentForm = ({
           </div>
         ) : null}
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-muted-foreground">
+      <div className="flex flex-col gap-3 border-t pt-5">
+        <p className="flex items-start gap-2 text-xs text-muted-foreground">
+          <Info className="mt-px size-3.5 shrink-0" aria-hidden />
           {isManager
             ? "Your payments are approved and allocated immediately."
             : "Your payments wait for a manager's approval before they count."}
         </p>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Recording…" : "Record payment"}
+        <Button
+          type="submit"
+          size="lg"
+          disabled={isPending}
+          className="w-full shadow-lg shadow-primary/25"
+        >
+          {isPending ? (
+            <>
+              <Loader2 className="animate-spin" data-icon="inline-start" />
+              Recording…
+            </>
+          ) : (
+            "Record payment"
+          )}
         </Button>
       </div>
     </form>

@@ -1,4 +1,4 @@
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, SearchX } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -35,21 +35,37 @@ const LeasesPage = async ({ searchParams }: PageProps<"/leases">) => {
   return (
     <>
       <PageHeader
+        icon={FileText}
         title="Leases"
         description="Every lease in your organization."
         actions={
           actor.role === "manager" ? (
-            <Link href="/leases/new" className={buttonVariants()}>
+            <Link
+              href="/leases/new"
+              className={buttonVariants({
+                size: "lg",
+                className: "shadow-lg shadow-primary/25",
+              })}
+            >
               <Plus data-icon="inline-start" />
               New lease
             </Link>
           ) : null
         }
       />
-      <LeaseSearch key={q} q={q} />
+      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3 shadow-sm shadow-primary/5 sm:flex-row sm:items-center sm:justify-between">
+        <LeaseSearch key={q} q={q} />
+        <p className="px-1 text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground tabular-nums">
+            {total}
+          </span>{" "}
+          {total === 1 ? "lease" : "leases"}
+          {q ? ` matching "${q}"` : ""}
+        </p>
+      </div>
       {rows.length === 0 ? (
         <EmptyState
-          icon={FileText}
+          icon={q ? SearchX : FileText}
           title={q ? "No leases match your search" : "No leases yet"}
           description={
             q
@@ -68,7 +84,7 @@ const LeasesPage = async ({ searchParams }: PageProps<"/leases">) => {
           }
         />
       ) : (
-        <>
+        <div className="overflow-hidden rounded-2xl border bg-card shadow-sm shadow-primary/5">
           <LeasesTable rows={rows} />
           <LeasePagination
             page={page}
@@ -76,7 +92,7 @@ const LeasesPage = async ({ searchParams }: PageProps<"/leases">) => {
             total={total}
             q={q}
           />
-        </>
+        </div>
       )}
     </>
   );

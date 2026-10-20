@@ -1,22 +1,15 @@
-import { ArrowLeft, Wallet } from "lucide-react";
+import { ArrowLeft, HandCoins, Receipt, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/layout/empty-state";
-import { PageHeader } from "@/components/layout/page-header";
+import { SectionCard } from "@/components/layout/section-card";
 import { InvoicesTable } from "@/components/leases/invoices-table";
 import { LeaseSummary } from "@/components/leases/lease-summary";
 import { PaymentsTable } from "@/components/payments/payments-table";
 import { RecordPaymentForm } from "@/components/payments/record-payment-form";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { formatCalendarDate, toMalaysiaInputValue } from "@/lib/dates";
+import { toMalaysiaInputValue } from "@/lib/dates";
 import { formatSen } from "@/lib/money";
 import { HttpError } from "@/lib/server/http";
 import { getLeaseDetail, type LeaseDetail } from "@/lib/server/services/leases";
@@ -68,17 +61,18 @@ const LeasePage = async ({ params }: PageProps<"/leases/[leaseId]">) => {
         className={buttonVariants({
           variant: "ghost",
           size: "sm",
-          className: "self-start",
+          className: "-ml-2 self-start text-muted-foreground",
         })}
       >
         <ArrowLeft data-icon="inline-start" />
         All leases
       </Link>
-      <PageHeader
-        title={`${labels.unitName} · ${labels.tenantName}`}
-        description={`${formatCalendarDate(detail.lease.startDate)} – ${formatCalendarDate(detail.lease.endDate)} (inclusive) · ${labels.tenantEmail}`}
-      />
       <LeaseSummary
+        unitName={labels.unitName}
+        tenantName={labels.tenantName}
+        tenantEmail={labels.tenantEmail}
+        startDate={detail.lease.startDate}
+        endDate={detail.lease.endDate}
         monthlyRentSen={detail.lease.monthlyRentSen}
         depositSen={detail.lease.depositSen}
         invoicedSen={invoicedSen}
@@ -86,41 +80,68 @@ const LeasePage = async ({ params }: PageProps<"/leases/[leaseId]">) => {
         pendingSen={pendingSen}
       />
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Invoices</h2>
-        <InvoicesTable invoices={detail.invoices} />
-      </section>
+      <div className="grid items-start gap-6 lg:grid-cols-3 2xl:grid-cols-4">
+        <div className="flex min-w-0 flex-col gap-6 lg:col-span-2 2xl:col-span-3">
+          <SectionCard
+            icon={Receipt}
+            title="Invoices"
+            description={`${detail.invoices.length} ${detail.invoices.length === 1 ? "invoice" : "invoices"} · due dates in Malaysia time`}
+          >
+            {detail.invoices.length === 0 ? (
+              <EmptyState bare icon={Receipt} title="No invoices" />
+            ) : (
+              <InvoicesTable invoices={detail.invoices} />
+            )}
+          </SectionCard>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Payments</h2>
-        {detail.payments.length === 0 ? (
-          <EmptyState
+          <SectionCard
             icon={Wallet}
-            title="No payments yet"
-            description="Payments recorded below, or paid online by the tenant, appear here."
-          />
-        ) : (
-          <PaymentsTable payments={detail.payments} canDecide={isManager} />
-        )}
-      </section>
+            tone="emerald"
+            title="Payments"
+            description={
+              isManager
+                ? "Approve or reject pending payments; void approved ones."
+                : "Cash, bank transfers and online payments for this lease."
+            }
+          >
+            {detail.payments.length === 0 ? (
+              <EmptyState
+                bare
+                icon={Wallet}
+                title="No payments yet"
+                description="Payments recorded here, or paid online by the tenant, appear in this list."
+              />
+            ) : (
+              <PaymentsTable payments={detail.payments} canDecide={isManager} />
+            )}
+          </SectionCard>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Record a payment</CardTitle>
-          <CardDescription>
-            Cash or bank transfer received for this lease. At most{" "}
-            {formatSen(capSen)} can be recorded now.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RecordPaymentForm
-            leaseId={detail.lease.id}
-            defaultReceivedAt={toMalaysiaInputValue(now)}
-            capLabel={formatSen(capSen)}
-            isManager={isManager}
-          />
-        </CardContent>
-      </Card>
+        <SectionCard
+          icon={HandCoins}
+          tone="teal"
+          title="Record a payment"
+          description="Cash or bank transfer received for this lease."
+          className="lg:sticky lg:top-8"
+        >
+          <div className="flex flex-col gap-5 p-5">
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-secondary/60 px-4 py-3 ring-1 ring-primary/10">
+              <span className="text-sm text-secondary-foreground">
+                Can be recorded now
+              </span>
+              <span className="font-semibold text-secondary-foreground tabular-nums">
+                {formatSen(capSen)}
+              </span>
+            </div>
+            <RecordPaymentForm
+              leaseId={detail.lease.id}
+              defaultReceivedAt={toMalaysiaInputValue(now)}
+              capLabel={formatSen(capSen)}
+              isManager={isManager}
+            />
+          </div>
+        </SectionCard>
+      </div>
     </>
   );
 };

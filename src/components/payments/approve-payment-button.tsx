@@ -12,7 +12,7 @@ export const ApprovePaymentButton = ({
   const { approve, isPending } = useApprovePayment(paymentId);
 
   return (
-    <Button size="sm" onClick={approve} disabled={isPending}>
+    <Button variant="success" size="sm" onClick={approve} disabled={isPending}>
       <Check data-icon="inline-start" />
       {isPending ? "Approving…" : "Approve"}
     </Button>

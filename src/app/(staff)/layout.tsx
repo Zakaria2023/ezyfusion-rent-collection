@@ -1,16 +1,16 @@
-import { AppHeader, type NavItem } from "@/components/layout/app-header";
+import { AppShell, type NavItem } from "@/components/layout/app-shell";
 import { requireMemberPage } from "./require-member";
 
 export const dynamic = "force-dynamic";
 
 const MEMBER_NAV: readonly NavItem[] = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/leases", label: "Leases" },
+  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/leases", label: "Leases", icon: "leases" },
 ];
 
 const MANAGER_NAV: readonly NavItem[] = [
   ...MEMBER_NAV,
-  { href: "/leases/new", label: "New lease" },
+  { href: "/leases/new", label: "New lease", icon: "new-lease" },
 ];
 
 // Chrome for staff and managers. This redirect is UX only: every page and
@@ -19,16 +19,14 @@ const StaffLayout = async ({ children }: LayoutProps<"/">) => {
   const actor = await requireMemberPage();
 
   return (
-    <>
-      <AppHeader
-        nav={actor.role === "manager" ? MANAGER_NAV : MEMBER_NAV}
-        email={actor.email ?? ""}
-        homeHref="/dashboard"
-      />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-8">
-        {children}
-      </main>
-    </>
+    <AppShell
+      nav={actor.role === "manager" ? MANAGER_NAV : MEMBER_NAV}
+      email={actor.email ?? ""}
+      role={actor.role}
+      homeHref="/dashboard"
+    >
+      {children}
+    </AppShell>
   );
 };
 
