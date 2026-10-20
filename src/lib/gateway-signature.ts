@@ -11,6 +11,8 @@ const SIGNATURE_FIELD = "x_signature";
 const SIGNATURE_PATTERN = /^[0-9a-f]{64}$/;
 const PAID_AT_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) ([+-])(\d{2})(\d{2})$/;
+const ISO_PAID_AT_PATTERN =
+  /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})$/;
 const SEN_PATTERN = /^\d+$/;
 
 // application/x-www-form-urlencoded → flat record. A key sent twice is
@@ -71,10 +73,23 @@ export const verifySignature = (
 const daysInMonth = (year: number, month: number): number =>
   new Date(Date.UTC(year, month, 0)).getUTCDate();
 
-// 'YYYY-MM-DD HH:mm:ss ±HHMM' → instant. Uses only Date.UTC, so the result
-// does not depend on the machine's timezone.
+// ISO 8601 ('2026-04-01T00:30:12+08:00', '…Z', '….123+0800') → the brief's
+// 'YYYY-MM-DD HH:mm:ss ±HHMM'. Fractional seconds are dropped. Anything else
+// is returned unchanged (and then refused by the strict pattern).
+const normalizePaidAt = (s: string): string => {
+  const iso = ISO_PAID_AT_PATTERN.exec(s);
+  if (!iso) {
+    return s;
+  }
+  const offset = iso[3] === "Z" ? "+0000" : (iso[3] ?? "").replace(":", "");
+  return `${iso[1]} ${iso[2]} ${offset}`;
+};
+
+// 'YYYY-MM-DD HH:mm:ss ±HHMM' (the brief's format) or ISO 8601 with an
+// offset → instant. Uses only Date.UTC, so the result does not depend on the
+// machine's timezone.
 export const parsePaidAt = (s: string): Date | null => {
-  const match = PAID_AT_PATTERN.exec(s);
+  const match = PAID_AT_PATTERN.exec(normalizePaidAt(s));
   if (!match) {
     return null;
   }
