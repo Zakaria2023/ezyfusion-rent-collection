@@ -3,3 +3,4 @@ src/generated
 supabase/.temp
 .next
 *.md
+scripts/gateway-sim.mjs
