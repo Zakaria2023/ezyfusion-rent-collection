@@ -6,12 +6,11 @@ import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { DEMO_PASSWORD } from "./demo-accounts";
 import { type LoginInput, loginSchema } from "./validation";
 
 // Sign-in logic for LoginForm: validation, the Supabase call, toasts, the
-// redirect, the password-visibility toggle and demo-account prefill. The
-// component only renders what this returns.
+// redirect and the password-visibility toggle. The component only renders
+// what this returns.
 export const useLoginForm = () => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -34,11 +33,6 @@ export const useLoginForm = () => {
       router.refresh();
     });
 
-  const fillDemo = (email: string) => {
-    form.setValue("email", email, { shouldValidate: true });
-    form.setValue("password", DEMO_PASSWORD, { shouldValidate: true });
-  };
-
   const togglePassword = () => setShowPassword((shown) => !shown);
 
   return {
@@ -48,6 +42,5 @@ export const useLoginForm = () => {
     isPending,
     showPassword,
     togglePassword,
-    fillDemo,
   };
 };

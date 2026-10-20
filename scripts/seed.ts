@@ -40,6 +40,7 @@ type LeaseSpec = {
 
 type ExistingUserRow = { email: string };
 
+// Shared by every seeded account (listed in README.md and .env.example).
 const PASSWORD = "Rentals2026!";
 
 const ORG_NAMES: Record<OrgKey, string> = {

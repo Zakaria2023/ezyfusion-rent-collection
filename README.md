@@ -21,7 +21,7 @@ Prerequisites: Node.js ≥ 20.9, pnpm 9, Docker Desktop (running).
 ```bash
 pnpm install                 # also generates the Prisma client
 pnpm supabase start          # local Supabase stack (first run pulls images)
-cp .env.example .env         # local defaults; matches `pnpm supabase status`
+cp .env.example .env.local   # local defaults; matches `pnpm supabase status`
 pnpm db:reset                # rebuild the schema from migrations
 pnpm seed                    # demo data through the app services
 pnpm dev                     # http://localhost:3000
@@ -62,6 +62,17 @@ with code 1 and asks for `npx supabase db reset` first.
 | `probe@northwind.test`   | tenant  | Northwind Properties | Probe Tenant — C-01-7, 2026-02-28 to 2027-02-27, RM 2,000.00/month  |
 | `manager@beta.test`      | manager | Beta Realty          |                                                                     |
 | `chen@beta.test`         | tenant  | Beta Realty          | Chen Wei — KL-1, 2026-03-15 to 2027-03-14, RM 2,200.00/month        |
+
+What each role can do after signing in at `/login`:
+
+| Role    | Lands on     | Can                                                                                         |
+| ------- | ------------ | ------------------------------------------------------------------------------------------- |
+| manager | `/dashboard` | Everything in their organization: create leases, record payments (approved immediately), approve / reject / void payments, read the audit log |
+| staff   | `/dashboard` | Read their organization's leases, invoices and payments; record payments (pending until a manager approves) |
+| tenant  | `/portal`    | Read their own lease, invoices and payments; update their phone number; pay online           |
+
+The same credentials are listed, commented out, at the bottom of
+`.env.example`. They are deliberately not shown anywhere in the UI.
 
 Unit D-03-2 (Northwind) has no lease. Aisyah's lease has two approved
 payments: RM 3,000.00 cash (received 2026-01-31 10:00 MYT, recorded by the
