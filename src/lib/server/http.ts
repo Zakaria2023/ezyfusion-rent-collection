@@ -83,3 +83,14 @@ export const readJson = async <T>(
   }
   return result.data;
 };
+
+// Reads a JSON body WITHOUT validating it, for routes whose service must run
+// its 404/403 checks before input validation (401 → 404 → 403 → 400). Invalid
+// JSON becomes `undefined`, which the service's zod schema rejects with 400.
+export const readJsonBody = async (req: Request): Promise<unknown> => {
+  try {
+    return await req.json();
+  } catch {
+    return undefined;
+  }
+};
