@@ -1,47 +1,15 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
-import { useTransition } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { type LoginInput, loginSchema } from "./validation";
+import { useLoginForm } from "./use-login-form";
 
 export const LoginForm = () => {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
-  });
-
-  const onSubmit = (values: LoginInput) =>
-    startTransition(async () => {
-      const { error } =
-        await createSupabaseBrowserClient().auth.signInWithPassword(values);
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      toast.success("Signed in.");
-      router.replace("/");
-      router.refresh();
-    });
+  const { register, errors, onSubmit, isPending } = useLoginForm();
 
   return (
-    <form
-      className="flex flex-col gap-4"
-      onSubmit={handleSubmit(onSubmit)}
-      noValidate
-    >
+    <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
         <Input
