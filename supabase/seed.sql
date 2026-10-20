@@ -1,2 +1,7 @@
--- Demo data, applied by `pnpm db:reset` after all migrations.
--- Must run cleanly on a freshly reset database with no manual steps.
+-- Intentionally empty (comments only).
+--
+-- `supabase db reset` runs this file after the migrations. The demo data is NOT
+-- created here: the brief requires `npm run seed`, which creates the seeded
+-- accounts, organizations, units, leases, invoices and payments through the
+-- app's own code paths (lease creation, payment recording and allocation), so
+-- the invoices and allocations are exactly the ones the app would produce.
