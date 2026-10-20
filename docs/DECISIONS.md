@@ -218,3 +218,16 @@ departures from the pre-test working agreement.
   the brief allows only for online payments.
 - **The return page only reads the bill's status** and ignores its `paid`
   query parameter. Only the signed webhook settles a bill.
+
+## Seed
+
+- **`npm run seed` goes through the services**: leases via `createLease`,
+  payments via `recordPayment` / `recordPaymentWithSlip` / `approvePayment`
+  with real manager/staff actors. Only rows that have no service (auth users,
+  orgs, memberships, tenants, units) are written directly. Rejected: SQL
+  inserts of invoices/allocations, which could drift from the real rules.
+- **The seed refuses a non-fresh database** (exit 1, "run `npx supabase db
+  reset` first") rather than upserting, so it can never half-merge.
+- **`server-only` under tsx**: `scripts/tsconfig.json` maps it to an empty
+  stub. Rejected: `--conditions=react-server`, which also swaps React for its
+  server build and crashes on `next/navigation`.
