@@ -21,7 +21,7 @@ Prerequisites: Node.js ≥ 20.9, pnpm 9, Docker Desktop (running).
 ```bash
 pnpm install                 # also generates the Prisma client
 pnpm supabase start          # local Supabase stack (first run pulls images)
-cp .env.example .env.local   # local defaults; matches `pnpm supabase status`
+cp .env.example .env.local   # the only env file; matches `pnpm supabase status`
 pnpm db:reset                # rebuild the schema from migrations
 pnpm seed                    # demo data through the app services
 pnpm dev                     # http://localhost:3000
