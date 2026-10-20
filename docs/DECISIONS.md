@@ -243,3 +243,33 @@ departures from the pre-test working agreement.
 - **Reasons are counted in characters (code points)**, exactly like the DB's
   `char_length` CHECK. zod's `.min(5)` counts UTF-16 units, so `"😀😀😀"`
   passed zod and then failed the constraint with a 500; it is now a 400.
+- **audit_log triggers are `ENABLE ALWAYS`.** An ordinary trigger is skipped
+  when a session sets `session_replication_role = replica`, which let the
+  owner delete audit rows with plain DML. Found by the self-audit, fixed in
+  `20261020105928_audit_log_always_triggers.sql`. DDL (dropping the trigger)
+  remains possible for the owner, but that is a visible schema change.
+- **Slips given to the HTTP API by path are re-checked by their bytes.**
+  Storage's `allowed_mime_types` trusts the declared Content-Type, so
+  `recordPayment` downloads the object and applies the same magic-byte and
+  5 MB checks as the UI upload (`verifyStoredSlip`).
+
+## UI
+
+- **Logic lives in hooks.** Every client component with logic has a sibling
+  `use-*.ts` hook; components only render.
+- **Every page and Server Action authorizes itself** (`getActor()` → the same
+  services as the API). A hidden button is not a check: a staff member who
+  calls the approve Server Action directly gets the 403 message.
+- **Times are entered and shown in Malaysia time regardless of the browser.**
+  The received-at field sends the raw `datetime-local` string; the server reads
+  it as UTC+8 (`malaysiaLocalToInstant`). Its default value is computed on the
+  server, and all display goes through deterministic formatters, so there is
+  no hydration mismatch in any browser timezone.
+- **Slips open through `/slips/:paymentId`**, a no-store GET route that checks
+  access and redirects to a 60-second signed URL created on click, so pages
+  never embed a live storage credential.
+- **Lease pages return a real 404** for records the user cannot see: the
+  detail and new-lease routes render without a streaming `loading.tsx`, so
+  `notFound()` runs before the status is sent.
+- **The create-lease preview uses the same pure `generateSchedule`** the server
+  stores, so what the manager sees is exactly what is created.
