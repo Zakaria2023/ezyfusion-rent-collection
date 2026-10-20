@@ -35,3 +35,24 @@ departures from the pre-test working agreement.
 - **Money is `bigint` sen and `number` in TypeScript.** The brief's
   `amountSen: number` is the contract; amounts stay far below 2^53, and
   conversion from Prisma's `bigint` goes through a checked `toSafeNumber`.
+
+## Webhook signature and HTTP plumbing
+
+- **Signatures are compared in constant time, and only well-formed ones get
+  that far.** `verifySignature` (`src/lib/gateway-signature.ts`) accepts only
+  exactly 64 lowercase hex characters, then runs `timingSafeEqual` on two
+  32-byte buffers. Rejected: string `===`, which leaks how many leading
+  characters matched.
+- **A form key sent twice is rejected; unknown keys are kept and signed.** With
+  a duplicate we cannot know which value the gateway signed. Rejected: "last
+  value wins" (`Object.fromEntries`), which lets an attacker append an unsigned
+  second value.
+- **Keys are sorted by UTF-16 code unit, not `localeCompare`.** That is the
+  brief's "ascending by character code" and the simulator's default `.sort()`;
+  locale-aware ordering varies with ICU settings.
+- **A missing `GATEWAY_X_SIGNATURE_KEY` throws (500), never 401 or a pass.**
+  An HMAC with an empty key is forgeable by anyone.
+- **One `handle()` wrapper maps thrown `HttpError`s to `{ error }` responses**
+  (`src/lib/server/http.ts`). Routes read as a straight line of guards
+  (`throw notFound()`), and a 500 logs only `error.message`, never bodies,
+  tokens or the gateway key.
