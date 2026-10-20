@@ -83,3 +83,58 @@ departures from the pre-test working agreement.
 - **Testing TZ on Windows:** `TZ=…` set in Git Bash does not reach Node;
   set it in PowerShell (`$env:TZ='America/New_York'`). A test asserts the
   zone actually took effect.
+
+## Database design (`supabase/migrations/`)
+
+- **Composite foreign keys carry `org_id`**: `leases (unit_id, org_id) →
+  units (id, org_id)`, and likewise for tenants, invoices, payments and
+  allocations. A row can never point into another organization, whatever IDs
+  the API is sent. Rejected: checking it only in app code.
+- **`leases_no_overlap`: a gist exclusion constraint on
+  `(unit_id =, daterange(start_date, end_date, '[]') &&)`.** Two concurrent
+  inserts of overlapping leases: the second waits, then fails with 23P01, which
+  maps to 409. Rejected: "select overlapping, then insert", which races.
+- **`payments.gateway_bill_id UNIQUE`** is the database-level guarantee that a
+  bill creates at most one payment, behind the app's row lock.
+- **Money invariants are enforced by triggers too**: forward-only statuses
+  (`pending_verification → approved|rejected`, `approved → voided`;
+  `pending → paid|failed`, `failed → paid` for bills), payments immutable and
+  never deleted, allocation sums ≤ invoice and payment amounts (with row
+  locks), allocations deletable only once their payment is voided. Prisma
+  connects as the owner and bypasses RLS, so the database must defend itself.
+- **`audit_log` is append-only for every role, including the owner**: BEFORE
+  UPDATE/DELETE row triggers plus a BEFORE TRUNCATE statement trigger. A
+  REVOKE would not bind the owner.
+- **No FK from `user_id` to `auth.users`.** Prisma 7 introspection fails on
+  cross-schema FKs (P4002), so a trigger checks the user exists instead.
+  Trade-off: deleting an auth user does not cascade.
+- **One deposit per lease = `UNIQUE NULLS NOT DISTINCT (lease_id,
+  period_index)`**; the deposit is the row with a NULL period. Rejected: a
+  partial unique index, which Prisma mis-introspected as a one-to-one relation.
+- **Gateway bill ids are `'bill_' || 32 hex` from `gen_random_uuid()`**
+  (122 random bits), so they are unguessable, with a CHECK on the format.
+- **Statuses are text + CHECK, not Postgres enums**, so the Prisma client sees
+  plain strings that match `src/lib/enums.ts`, and adding a value needs no
+  enum migration.
+
+## Data API and Storage (layer 2 of access control)
+
+- **Grants are the outer wall, RLS the inner one.** Supabase's default
+  privileges give `anon`/`authenticated` ALL on new tables; the migration
+  revokes everything, then grants `SELECT` to `authenticated` on the 10
+  tables, and `UPDATE (phone)` on `tenants` only. "A tenant updates only their
+  phone" is therefore a column privilege, and the RLS policy limits it to
+  their own row. `anon` has no privileges at all.
+- **No functions in `public`.** RLS helpers (`private.member_org_id()`,
+  `private.tenant_lease_ids()`, …) are `security definer`,
+  `set search_path = ''`, in the `private` schema, which PostgREST does not
+  expose, so every `/rest/v1/rpc/...` call returns 404.
+- **Storage**: the private bucket `payment-slips` (5 MB, JPEG/PNG/PDF) is
+  created in a migration. INSERT/SELECT policies on `storage.objects` allow
+  only staff or managers whose org id is the first path segment. There are no
+  UPDATE/DELETE policies; cleanup of an orphaned upload uses the secret key on
+  the server. A trigger rejects a `payments.slip_path` that is not an existing
+  object in that payment's own org folder.
+- **Verified with real tokens** against PostgREST and Storage (tenant
+  isolation, staff vs other org, phone-only update, rpc 404, anon denied,
+  uploads to another org's folder refused).
