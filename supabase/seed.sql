@@ -1,0 +1,2 @@
+-- Demo data, applied by `pnpm db:reset` after all migrations.
+-- Must run cleanly on a freshly reset database with no manual steps.

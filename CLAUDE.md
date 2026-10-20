@@ -83,6 +83,13 @@ Local URLs/keys come from `pnpm supabase status`; they live in `.env`
   import types from `@/generated/prisma/client`.
 - Next 16 renamed middleware to **`src/proxy.ts`** (export `proxy`) — that is
   where the Supabase session cookie is refreshed.
+- Run any TypeScript that touches the DB through **Vitest** (`tests/*.test.ts`),
+  not plain `node`: Node cannot resolve the generated Prisma client's
+  extensionless imports. Integration tests load env with
+  `process.loadEnvFile(".env")`. Postgres `bigint` comes back as JS `bigint`
+  (`12345n`).
+- Delete `supabase/migrations/.gitkeep` once the first real migration exists
+  (`db reset` prints a "skipping" notice for it).
 - Class names: `cn` from `@/lib/utils`. Add shadcn components with
   `pnpm dlx shadcn@latest add <name>`.
 
