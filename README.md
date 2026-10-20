@@ -115,4 +115,4 @@ docs/
 
 ## Design decisions
 
-See [docs/DECISIONS.md](docs/DECISIONS.md).
+See [DECISIONS.md](DECISIONS.md).

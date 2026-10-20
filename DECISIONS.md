@@ -1,5 +1,116 @@
 # Decisions
 
+## Part C — answers
+
+### 1. The same `paid=true` callback twice, 5 ms apart
+
+Both reach `src/app/api/webhooks/gateway/route.ts:12` (raw body) →
+`processGatewayCallback`. Each verifies the HMAC
+(`src/lib/server/services/gateway.ts:265`), validates fields, finds the bill
+and checks the amount. Each then opens a transaction in `applyCallback`:
+`lockLease` (`gateway.ts:197`) takes `SELECT … FOR UPDATE` on the lease row, so
+the second request **waits** until the first commits. The first re-reads the
+bill `FOR UPDATE` (`gateway.ts:198-200`), sees `pending`, marks it paid,
+creates one approved online payment with `received_at = paid_at`
+(`gateway.ts:228`), allocates it and writes the audit row. The second then
+re-reads the bill, sees `paid` (`gateway.ts:215`) and returns 200 with no
+effect. The database guarantees it independently:
+`payments.gateway_bill_id` is `UNIQUE`
+(`supabase/migrations/20261020100616_schema.sql:228`), a second insert's 23505
+is answered 200 (`gateway.ts:292`), and a trigger makes `paid` terminal.
+
+### 2. RM 800 and RM 700 at the same moment, RM 1,000 remaining
+
+Both enter `recordPayment` (`src/lib/server/services/payments.ts:127`). Each
+transaction first calls `lockLease` (`payments.ts:151`), `SELECT … FOR UPDATE`
+on the lease row, so they run one after the other. The winner, say RM 800,
+reads the totals (`payments.ts:152`): cap = invoiced − allocated − pending =
+1,000, so it is inserted (pending for staff) and commits. The RM 700 request
+was blocked on the lock; it now reads the totals **after** that commit, sees
+RM 800 pending, cap = 200, and gets 422 (`payments.ts:153-156`). The lock is
+what stops both being accepted: without it both would read 1,000. The test
+`tests/payments.test.ts:75` fires both concurrently and fails when the lock is
+removed. Which request wins is decided by lock order, not by amount.
+
+### 3. Every place that works out "today" or converts date ↔ instant
+
+All Malaysia time (fixed UTC+8, no DST), because the business is in Malaysia
+while the server runs in UTC and viewers are anywhere:
+
+- `src/lib/billing.ts:158` `malaysiaDateOf`: today = ⌊(epoch + 8 h) / day⌋;
+  used by `invoiceStatus` (`billing.ts:225`), so an invoice due 03-01 becomes
+  overdue at 03-01T16:00Z.
+- `src/lib/dates.ts:85` `todayInMalaysia` (same function): amount due now
+  (`gateway.ts:113`), dashboard overdue (`leases.ts:397-412`), the portal
+  (`src/components/portal/portal-data.ts:202`).
+- `dates.ts:95` `malaysiaLocalToInstant`: form input read as +08:00
+  (`src/app/(staff)/leases/[leaseId]/actions.ts`); `dates.ts:120/126`: output
+  as +08:00.
+- `dates.ts:149/157`: Postgres `date` ↔ `'YYYY-MM-DD'` through UTC midnight,
+  with no zone (a date has no time).
+- `src/lib/server/services/reports.ts:55-56`: month bounds
+  `AT TIME ZONE 'Asia/Kuala_Lumpur'`.
+- `src/lib/gateway-signature.ts:91`: `paid_at` uses its own offset; the API
+  requires one on `receivedAt`.
+
+### 4. Queries not subject to RLS, and what authorizes them instead
+
+- **All Prisma queries** (owner role, `src/lib/server/prisma.ts`). The caller
+  is authenticated with `getUser()` / `getUser(token)`
+  (`src/lib/server/auth.ts:42,53`). The role comes only from
+  `memberships`/`tenants` (`auth.ts:77-93`). Then `requireVisibleLease` /
+  `requireVisiblePayment` scope by `org_id` (and `tenant_id` for tenants) →
+  404 (`src/lib/server/access.ts:30-73`), and `requireMember`/`requireManager`
+  → 403 (`access.ts:86-94`). Composite `(id, org_id)` FKs and triggers are the
+  backstop.
+- **Service role** (`src/lib/server/supabase-admin.ts`): slip
+  upload/verify/remove/sign (`src/lib/server/slips.ts:60-101`), always called
+  after those same lease/payment checks; `createUser` in the CLI-only seed
+  (`scripts/seed.ts:178`).
+- **SECURITY DEFINER** RLS helpers
+  (`supabase/migrations/20261020100622_access_control.sql:50-110`): read-only,
+  filtered by `auth.uid()`, `search_path = ''`, in the unexposed `private`
+  schema. Trigger functions only enforce invariants.
+- **Webhook**: there is no user; it is authorized by the HMAC (`gateway.ts:265`).
+
+### 5. A void reopens invoices while the lease has `unapplied_sen` from an online payment
+
+`voidPayment` (`src/lib/server/services/payments.ts:335-375`) sets the payment
+`voided` (`:353`) and deletes **only its own** allocations (`:359`). Nothing
+else moves: the online payment keeps its `unapplied_sen`, the reopened
+invoices show unpaid/overdue, and the remaining balance grows by the voided
+amount. The unapplied credit is shown on the lease page (payments table) for
+the manager to act on.
+
+I chose not to re-apply the credit automatically because the brief says
+"Other payments' allocations do not change". Silently moving money from an
+already-settled online payment would rewrite its allocations after the fact
+and blur the audit trail. The cost: the credit is not counted in the cap, so a
+manager could record a manual payment while credit exists. An explicit, audited
+"apply credit" action is the next step (README → "What I would do next").
+
+### 6. Two things the AI assistant got wrong, and how I noticed
+
+1. **`npm install` would have failed at grading step 3.**
+   `@hookform/resolvers@6` has an npm peer conflict (ERESOLVE) that pnpm hides,
+   and there was no `package-lock.json`. I asked for an independent
+   brief-contract audit, which ran `npm install` on a copy and caught it. Fix:
+   pin v5 and commit a lockfile (commit `fix(build): make the graders' npm
+   install resolve`). In `ai-logs/`, search "ERESOLVE".
+2. **Wrong instructions and validation.** The seed was told to run with
+   `tsx --conditions=react-server`, which crashed (`createContext is not a
+   function`); the seed agent caught it when running it (search
+   "conditions=react-server"). The payment rules also rejected a future
+   `receivedAt`, which the brief never asks for, and checked reasons with zod's
+   `.min(5)` (UTF-16 units), so `"😀😀😀"` gave a 500 against the DB's
+   `char_length` CHECK. Both were found by the money/concurrency audit I asked
+   for (search "😀😀😀"), then fixed with tests.
+
+---
+
+## Decision log
+
+
 One entry per non-obvious decision: what was chosen, why, and the alternative
 that was rejected. Written as the work happens — this is the script for the
 code walkthrough.
