@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Rent Collection
 
-## Getting Started
+Rent collection for property managers: leases, invoices, and cash, bank
+transfer and online payments, with role-based access for managers, staff and
+tenants.
 
-First, run the development server:
+## Stack
+
+- **App:** Next.js 16 (App Router, Server Actions), React 19, TypeScript
+- **Data:** Supabase — PostgreSQL 17, Auth, Row Level Security, Storage
+- **Data access:** Prisma 7 (`prisma-client` generator, `pg` driver adapter)
+- **UI:** shadcn/ui, Tailwind CSS 4
+- **Validation:** zod, react-hook-form
+- **Dates:** date-fns 4 + `@date-fns/tz`
+- **Tests:** Vitest
+
+## Getting started
+
+Prerequisites: Node.js ≥ 20.9, pnpm 9, Docker Desktop (running).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install                 # also generates the Prisma client
+pnpm supabase start          # local Supabase stack (first run pulls images)
+cp .env.example .env         # local defaults; matches `pnpm supabase status`
+pnpm db:reset                # apply migrations + seed
+pnpm dev                     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Supabase Studio runs at <http://127.0.0.1:54323> and the local mail inbox
+(sign-up / magic-link emails) at <http://127.0.0.1:54324>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `pnpm dev` — development server
+- `pnpm build` — production build
+- `pnpm db:reset` — recreate the local database from migrations and seed
+- `pnpm db:pull` — introspect the database into the Prisma client
+- `pnpm test` — unit and integration tests
+- `pnpm check` — lint, typecheck, format check and tests
 
-## Learn More
+## Database
 
-To learn more about Next.js, take a look at the following resources:
+`supabase/migrations/*.sql` is the single source of truth for the schema,
+including Row Level Security policies, constraints and database functions.
+`supabase/seed.sql` loads demo data. Prisma introspects the resulting database
+(`pnpm db:pull`) and is used only as a typed query client — it never runs
+migrations.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+src/
+  app/                 routes; each feature folder holds page.tsx, actions.ts, validation.ts
+  components/          UI components grouped by feature; components/ui = shadcn
+  lib/                 framework-agnostic helpers
+  lib/server/          server-only code (Prisma client, authorization guards)
+  lib/supabase/        Supabase clients for server and browser
+  proxy.ts             session refresh (Next.js 16 proxy)
+supabase/
+  migrations/          schema, RLS policies, functions
+  seed.sql             demo data
+docs/
+  DECISIONS.md         design decisions and their trade-offs
+```
 
-## Deploy on Vercel
+## Design decisions
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [docs/DECISIONS.md](docs/DECISIONS.md).

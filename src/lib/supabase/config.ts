@@ -8,7 +8,10 @@ const requireValue = (name: string, value: string | undefined): string => {
 };
 
 export const supabaseUrl = () =>
-  requireValue("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  requireValue(
+    "NEXT_PUBLIC_SUPABASE_URL",
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+  );
 
 export const supabasePublishableKey = () =>
   requireValue(

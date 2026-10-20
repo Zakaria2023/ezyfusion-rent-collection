@@ -16,9 +16,9 @@ tenants**.
   machine** against a local Supabase, then probe edge cases. The AI session logs
   are submitted, and the interview opens with a walkthrough of this code — so
   every decision must be one the user can explain.
-- Assessed on: money and date correctness (rounding, timezones), DB design + RLS
-  + server-side authorization, concurrency and idempotency (payments, webhooks),
-  code quality.
+- Assessed on: money and date correctness (rounding, timezones), DB design,
+  RLS and server-side authorization, concurrency and idempotency (payments,
+  webhooks), code quality.
 
 ### How to work during the test
 
@@ -29,9 +29,22 @@ tenants**.
 - Record every non-obvious decision (one or two lines each: what, why, the
   alternative rejected) in `docs/DECISIONS.md` as you go. This is the
   interview script.
-- Commit after every working step with a clear message. Never `git push` — the
-  user pushes.
+- Commit after every working step, Conventional Commits style
+  (`feat(payments): …`, `fix(rls): …`, `test: …`), one logical change per
+  commit, body says _why_. The history is part of what gets reviewed. Never
+  `git push` — the user pushes.
 - Never sign in to the assessment portal or touch it — the user does that.
+
+### Before the time runs out (start this with ≥ 30 min left)
+
+1. `pnpm db:reset` from scratch succeeds — migrations **and** seed, no manual
+   steps. This is literally how it is graded.
+2. `pnpm check` and `pnpm build` are green.
+3. README: fill in the seeded demo accounts (email / password / role) and any
+   setup step the brief adds. `.env.example` is complete.
+4. `docs/DECISIONS.md` covers money, dates/timezone, RLS + server authz,
+   concurrency, idempotency/webhooks, and anything deliberately left out.
+5. Everything committed; the user pushes and submits.
 
 ## Stack & commands
 
@@ -44,15 +57,22 @@ Use **pnpm** for everything (`pnpm add`, `pnpm <script>`), never npm/yarn.
 The Supabase CLI is a dev dependency: `pnpm supabase …`. The network here is
 slow — prefer `pnpm add --prefer-offline` and don't add packages casually.
 
-| Command | Does |
-| --- | --- |
-| `pnpm supabase start` / `stop` | Local stack (Docker Desktop must be running) |
-| `pnpm db:reset` | `supabase db reset`: drop, re-apply `supabase/migrations/*`, run `supabase/seed.sql` — **exactly what the graders run** |
-| `pnpm supabase migration new <name>` | New timestamped SQL migration |
-| `pnpm db:pull` | `prisma db pull && prisma generate` — refresh the Prisma client from the DB |
-| `pnpm dev` | App on http://localhost:3000 |
-| `pnpm test` | Vitest (`src/**/*.test.ts`, `tests/**/*.test.ts`) |
-| `pnpm build` | **The real gate** — run it before calling anything done; `tsc` alone is not enough |
+Commands:
+
+- `pnpm supabase start` / `pnpm supabase stop` — start or stop the local
+  Supabase stack. Docker Desktop must be running.
+- `pnpm db:reset` — wipe the local database, re-run every migration in
+  `supabase/migrations/`, then run `supabase/seed.sql`. **This is exactly what
+  the graders run.**
+- `pnpm supabase migration new <name>` — create a new, timestamped SQL
+  migration file.
+- `pnpm db:pull` — read the database into `prisma/schema.prisma` and
+  regenerate the Prisma client. Run it after every migration.
+- `pnpm dev` — run the app at `http://localhost:3000`.
+- `pnpm test` — run the Vitest tests (`src/**/*.test.ts`, `tests/**/*.test.ts`).
+- `pnpm check` — lint, typecheck, format check and tests in one go.
+- `pnpm build` — **the real gate.** Run it before calling anything done;
+  `tsc` alone is not enough.
 
 Local URLs/keys come from `pnpm supabase status`; they live in `.env`
 (gitignored; `.env.example` is the committed template). Both Next.js and
@@ -92,7 +112,7 @@ Local URLs/keys come from `pnpm supabase status`; they live in `.env`
   `tenant`) lives in a `profiles` table keyed by `auth.users.id` (or in
   `app_metadata`). **Never** trust `user_metadata` — the user can edit it.
 - **Layer 1 — RLS on every table** in the `public` schema: `enable row level
-  security` in the same migration that creates the table; no table is ever left
+security` in the same migration that creates the table; no table is ever left
   open. Policies call small `security definer` helpers (`public.current_role()`,
   `public.is_tenant_of_lease(lease_id)`) with `set search_path = ''`. Tenants see
   only their own leases/invoices/payments; staff/manager scope is whatever the
@@ -127,7 +147,7 @@ Local URLs/keys come from `pnpm supabase status`; they live in `.env`
 - Invoice balance = total − sum of **applied** payment allocations. Never store a
   mutable running balance that can drift; if one is cached for speed, it is
   updated in the same transaction and guarded by a CHECK (`paid_cents <=
-  total_cents` unless overpayment/credit is in scope).
+total_cents` unless overpayment/credit is in scope).
 
 ## Dates & time
 
@@ -176,7 +196,7 @@ Local URLs/keys come from `pnpm supabase status`; they live in `.env`
 
 ## Project structure
 
-```
+```text
 src/
   app/                    routes; each feature folder has page.tsx, actions.ts, validation.ts
   app/api/webhooks/…      Route Handlers (only for external callers / raw bodies)
