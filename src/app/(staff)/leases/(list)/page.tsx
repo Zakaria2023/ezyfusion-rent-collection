@@ -8,7 +8,7 @@ import { LeaseSearch } from "@/components/leases/lease-search";
 import { LeasesTable } from "@/components/leases/leases-table";
 import { buttonVariants } from "@/components/ui/button";
 import { listLeases } from "@/lib/server/services/leases";
-import { requireMemberPage } from "../require-member";
+import { requireMemberPage } from "../../require-member";
 
 export const metadata: Metadata = { title: "Leases" };
 
