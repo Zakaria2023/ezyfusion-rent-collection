@@ -27,7 +27,8 @@ const MONTH_NAMES = [
 ] as const;
 const LOCAL_DATE_TIME_PATTERN =
   /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
-const YEAR_MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+// Year 0001-9999 (Postgres has no year 0), month 01-12.
+const YEAR_MONTH_PATTERN = /^(?!0000)\d{4}-(0[1-9]|1[0-2])$/;
 
 type WallClock = {
   year: number;

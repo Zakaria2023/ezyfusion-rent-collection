@@ -56,7 +56,12 @@ const recordPaymentSchema = z.object({
     z.preprocess(normalizeOffset, z.iso.datetime({ offset: true })),
     z.date(),
   ]),
-  slipPath: z.string().min(1).optional(),
+  // null is treated like "absent" (a JSON client may send slipPath: null).
+  slipPath: z
+    .string()
+    .min(1)
+    .nullish()
+    .transform((value) => value ?? undefined),
 });
 
 // Counted in characters (code points), like the DB's char_length CHECK;

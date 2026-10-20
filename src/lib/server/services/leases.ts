@@ -170,9 +170,10 @@ export const createLease = async (
   requireManager(actor);
   const data = createLeaseSchema.parse(input);
   const schedule = scheduleOrBadRequest(data);
-  // IDs in the body are untrusted: another org's unit/tenant is "not found".
+  // A malformed id is invalid input (400); a well-formed id of another org's
+  // unit/tenant is "not found" (404) further down, never revealed.
   if (!isUuid(data.unitId) || !isUuid(data.tenantId)) {
-    throw notFound();
+    throw badRequest("unitId and tenantId must be UUIDs");
   }
   const startDate = calendarDateToDb(data.startDate);
   const endDate = calendarDateToDb(data.endDate);

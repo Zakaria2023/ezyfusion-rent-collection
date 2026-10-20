@@ -9,7 +9,8 @@ import { prisma } from "../prisma";
 // Collections report: approved payments per Malaysia calendar month of
 // received_at, one row per month in the range (zeros included).
 
-const MAX_MONTHS = 120;
+// 100 years: generous for any real report, still bounded for the server.
+const MAX_MONTHS = 1200;
 
 export type CollectionsRow = { month: string; collectedSen: number };
 

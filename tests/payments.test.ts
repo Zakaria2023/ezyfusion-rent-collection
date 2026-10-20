@@ -490,7 +490,8 @@ describe("collections report", () => {
       ["2026-1", "2026-02"],
       ["2026-03", "2026-01"],
       [null, "2026-01"],
-      ["2000-01", "2026-01"],
+      ["1900-01", "2026-01"], // over the 1200-month cap
+      ["0000-01", "0000-02"], // no year 0 in Postgres
     ]) {
       expect(await statusOf(collectionsReport(f.managerActor, from, to))).toBe(
         400,
