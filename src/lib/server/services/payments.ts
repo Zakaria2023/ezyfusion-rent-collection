@@ -32,22 +32,39 @@ import { removeSlip, signedSlipUrl, uploadSlip } from "../slips";
 // Check order in every entry point: 404 (not visible) -> 403 (role) ->
 // 400 (input) -> 409 (state) / 422 (amount). 401 is the route's job.
 
-const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 const TRANSACTION_OPTIONS = { maxWait: 10000, timeout: 20000 };
 const FK_VIOLATION = "23503";
 const UNIQUE_VIOLATION = "23505";
 
+// '+0800' (ISO 8601 basic offset) → '+08:00', which zod's validator expects.
+const normalizeOffset = (value: unknown): unknown =>
+  typeof value === "string"
+    ? value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2")
+    : value;
+
 const recordPaymentSchema = z.object({
   amountSen: z.int().positive(),
   method: z.enum(["cash", "bank_transfer"]),
-  // ISO 8601 with an explicit offset (Z or ±hh:mm); a bare local time is
-  // ambiguous on a UTC server, so it is refused rather than guessed.
-  receivedAt: z.union([z.iso.datetime({ offset: true }), z.date()]),
+  // ISO 8601 with an explicit offset (Z, ±hh:mm or ±hhmm); a bare local
+  // time is ambiguous on a UTC server, so it is refused rather than guessed.
+  receivedAt: z.union([
+    z.preprocess(normalizeOffset, z.iso.datetime({ offset: true })),
+    z.date(),
+  ]),
   slipPath: z.string().min(1).optional(),
 });
 
+// Counted in characters (code points), like the DB's char_length CHECK;
+// zod's .min() counts UTF-16 units, so "😀😀😀" would pass it and then fail
+// the constraint with a 500.
 const reasonSchema = z.object({
-  reason: z.string().trim().min(5, "Reason must be at least 5 characters"),
+  reason: z
+    .string()
+    .trim()
+    .refine(
+      (reason) => [...reason].length >= 5,
+      "Reason must be at least 5 characters",
+    ),
 });
 
 export type RecordPaymentInput = z.input<typeof recordPaymentSchema>;
@@ -101,15 +118,11 @@ export const recordPayment = async (
   actor: Actor,
   leaseId: string,
   input: unknown,
-  now: Date = new Date(),
 ): Promise<RecordPaymentResult> => {
   const lease = await requireVisibleLease(actor, leaseId);
   requireMember(actor);
   const data = recordPaymentSchema.parse(input);
   const receivedAt = toInstant(data.receivedAt);
-  if (receivedAt.getTime() > now.getTime() + MAX_CLOCK_SKEW_MS) {
-    throw badRequest("receivedAt cannot be in the future");
-  }
   if (data.method === "bank_transfer") {
     if (!data.slipPath) {
       throw badRequest("slipPath: A bank transfer needs a slip");

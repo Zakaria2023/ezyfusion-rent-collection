@@ -99,8 +99,15 @@ export const reasonFormSchema = z.object({
   reason: z
     .string()
     .trim()
-    .min(5, "Give a reason of at least 5 characters.")
-    .max(500, "Keep the reason under 500 characters."),
+    // Code points, like the DB's char_length CHECK (zod counts UTF-16 units).
+    .refine(
+      (reason) => [...reason].length >= 5,
+      "Give a reason of at least 5 characters.",
+    )
+    .refine(
+      (reason) => [...reason].length <= 500,
+      "Keep the reason under 500 characters.",
+    ),
 });
 
 export type PaymentFormInput = z.infer<typeof paymentFormSchema>;

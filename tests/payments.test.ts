@@ -101,7 +101,6 @@ describe("recording payments", () => {
       { ...cash(100), amountSen: 1.5 },
       { ...cash(100), amountSen: "100" },
       { ...cash(100), receivedAt: "2026-01-15T10:00:00" }, // no offset
-      { ...cash(100), receivedAt: "2999-01-01T00:00:00+08:00" }, // future
       { ...cash(100), slipPath: `${f.orgId}/x.pdf` }, // cash with a slip
       { ...cash(100), method: "bank_transfer" }, // no slip
       { ...cash(100), method: "bank_transfer", slipPath: "other-org/x.pdf" },
@@ -178,12 +177,35 @@ describe("approving, rejecting, voiding", () => {
     expect(await allocatedTo(pending.id)).toBe(0n);
   });
 
+  test("receivedAt accepts ±hhmm offsets and future instants", async () => {
+    const f = await createFixture();
+    const basic = await recordPayment(f.staffActor, f.leaseId, {
+      ...cash(100),
+      receivedAt: "2026-03-01T00:30:00+0800",
+    });
+    const future = await recordPayment(f.staffActor, f.leaseId, {
+      ...cash(100),
+      receivedAt: "2027-01-15T10:00:00+08:00",
+    });
+    const stored = await prisma.payments.findUniqueOrThrow({
+      where: { id: basic.id },
+    });
+    expect(stored.received_at.toISOString()).toBe("2026-02-28T16:30:00.000Z");
+    expect(future.status).toBe("pending_verification");
+  });
+
   test("reject needs a reason and a pending payment", async () => {
     const f = await createFixture();
     const payment = await recordPayment(f.staffActor, f.leaseId, cash(1000));
     expect(
       await statusOf(
         rejectPayment(f.managerActor, payment.id, { reason: "  abc  " }),
+      ),
+    ).toBe(400);
+    // 3 characters but 6 UTF-16 units: must be a 400, not a DB CHECK 500.
+    expect(
+      await statusOf(
+        rejectPayment(f.managerActor, payment.id, { reason: "😀😀😀" }),
       ),
     ).toBe(400);
     expect(

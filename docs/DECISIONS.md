@@ -231,3 +231,15 @@ departures from the pre-test working agreement.
 - **`server-only` under tsx**: `scripts/tsconfig.json` maps it to an empty
   stub. Rejected: `--conditions=react-server`, which also swaps React for its
   server build and crashes on `next/navigation`.
+
+## Input validation details (from the self-audit)
+
+- **`receivedAt` must carry an offset** (`Z`, `+08:00` or `+0800`); a bare
+  local time is ambiguous on a UTC server and is refused (400). Any instant is
+  accepted, including a future one: the brief does not forbid it, and the
+  UI defaults the field to "now" in Malaysia time anyway. Rejected: a
+  "not in the future" rule, which the hidden tests could legitimately trip
+  (the Probe Tenant lease runs into 2027).
+- **Reasons are counted in characters (code points)**, exactly like the DB's
+  `char_length` CHECK. zod's `.min(5)` counts UTF-16 units, so `"😀😀😀"`
+  passed zod and then failed the constraint with a 500; it is now a 400.

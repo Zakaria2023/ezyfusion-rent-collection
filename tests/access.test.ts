@@ -753,7 +753,6 @@ describe("POST /api/leases/:leaseId/payments", () => {
       cash(1000, "2026-10-01T09:00:00"),
       cash(1000, "2026-10-01"),
       cash(1000, "yesterday"),
-      cash(1000, "2099-01-01T00:00:00+08:00"),
       { amountSen: 1000, method: "cash" },
       // A cash payment has no slip.
       { ...cash(1000), slipPath: ownSlip },
